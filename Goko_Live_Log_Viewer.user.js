@@ -4,9 +4,12 @@
 // @description Dominion Online Live Log Viewer
 // @include     http://play.goko.com/Dominion/gameClient.html
 // @include     https://play.goko.com/Dominion/gameClient.html
+// @require     http://dom.retrobox.eu/js/1.0.0/set_parser.js
+// @run-at      document-end
 // @grant       none
-// @version     6
+// @version     11
 // ==/UserScript==
+var foo = function () {
 var newLog = document.createElement('div');
 var newLogText = '';
 var newLogMode = -1;
@@ -18,6 +21,7 @@ var playerDecks = [];
 var vpchips = [];
 var playervp = [];
 var possessed;
+var newLogHide = true;
 newLog.setAttribute("class", "newlog");
 document.getElementById("goko-game").appendChild(newLog);
 Dom.DominionWindow.prototype._old_updateState = Dom.DominionWindow.prototype._updateState;
@@ -84,24 +88,28 @@ Dom.LogManager.prototype.addLog = function (opt) {
 		newLogText += opt.text + '<br>';
 	    }
 	}
+	newLogHide = false;
+	newLogRefresh();
+	var newLogContainer = document.getElementById("newlogcontainer");
+	newLogContainer.scrollTop = newLogContainer.scrollHeight;
+    }
+    this.old_addLog(opt);
+};
+function newLogRefresh() {
+	var goko_game = document.getElementById("goko-game");
 	var goko_canvas = document.getElementById("myCanvas");
-	goko_canvas.style.marginLeft="0px";
-	document.getElementById("goko-game").setAttribute("style", 'margin-left:'+Math.floor(-window.innerWidth/2) + 'px !important');
+	if (newLogHide || goko_game.style.display == 'none') return;
+	goko_game.setAttribute("style", 'margin-left:'+Math.floor(-window.innerWidth/2) + 'px !important');
 	var goko_w = goko_canvas.offsetWidth;
 	var goko_h = goko_canvas.offsetHeight;
 	var w = window.innerWidth - goko_w;
 	var t = goko_canvas.style.marginTop;
 	newLog.setAttribute("style", "position:absolute; overflow:auto; left:"+goko_w+"px; width:"+w+"px; margin-top:"+t+"; height:"+goko_h+"px; background-color: white; z-index: -1");
 	newLog.innerHTML = vp_div() + '<div id="newlogcontainer" style="overflow:auto;height:'+(goko_h-200)+'px;width:'+(w-10)+'px;padding:195px 5px 5px 5px">'+newLogText+"</div>";
-	var newLogContainer = document.getElementById("newlogcontainer");
-	newLogContainer.scrollTop = newLogContainer.scrollHeight;
-    }
-    this.old_addLog(opt);
-};
-//function newLogAlign() {
-//    setTimeout('newLogAlign()', 1000/2);
-//}
-//newLogAlign();
+}
+window.addEventListener('resize', function() {
+	setTimeout(newLogRefresh,100);
+}, false);
 function addStyle(style) {
 var head = document.getElementsByTagName('head')[0];
 var ele = head.appendChild(window.document.createElement('style'));
@@ -170,6 +178,7 @@ vp-chip\
 ";
     var singletypes = {
     action: 'rgb(240,240,240)',
+    'action-attack': 'rgb(240,240,240)',
     treasure: 'rgb(253,225,100)',
     'action-reaction': 'rgb(64,168,227)',
     'action-duration': 'rgb(254,143,78)',
@@ -228,7 +237,7 @@ var types = {
 'Adventurer':'action',
 'Alchemist':'action',
 'Altar':'action',
-'Ambassador':'action',
+'Ambassador':'action-attack',
 'Apothecary':'action',
 'Apprentice':'action',
 'Armory':'action',
@@ -238,7 +247,7 @@ var types = {
 'Bazaar':'action',
 'Bishop':'action',
 'Bridge':'action',
-'Bureaucrat':'action',
+'Bureaucrat':'action-attack',
 'Cartographer':'action',
 'Catacombs':'action',
 'Cellar':'action',
@@ -249,8 +258,8 @@ var types = {
 'Council Room':'action',
 'Courtyard':'action',
 'Crossroads':'action',
-'Cultist':'action',
-'Cutpurse':'action',
+'Cultist':'action-attack',
+'Cutpurse':'action-attack',
 'Dame Anna':'action',
 'Dame Molly':'action',
 'Dame Natalie':'action',
@@ -263,17 +272,17 @@ var types = {
 'Envoy':'action',
 'Expand':'action',
 'Explorer':'action',
-'Familiar':'action',
+'Familiar':'action-attack',
 'Feast':'action',
 'Festival':'action',
-'Followers':'action',
+'Followers':'action-attack',
 'Forager':'action',
 'Forge':'action',
 'Fortress':'action',
-'Fortune Teller':'action',
-'Ghost Ship':'action',
+'Fortune Teller':'action-attack',
+'Ghost Ship':'action-attack',
 'Golem':'action',
-'Goons':'action',
+'Goons':'action-attack',
 'Governor':'action',
 'Graverobber':'action',
 'Haggler':'action',
@@ -288,54 +297,54 @@ var types = {
 'Ironmonger':'action',
 'Ironworks':'action',
 'JackOfAllTrades':'action',
-'Jester':'action',
+'Jester':'action-attack',
 'Junk Dealer':'action',
 'King\'s Court':'action',
-'Knights':'action',
+'Knights':'action-attack',
 'Laboratory':'action',
 'Lookout':'action',
 'Madman':'action',
 'Mandarin':'action',
-'Marauder':'action',
-'Margrave':'action',
+'Marauder':'action-attack',
+'Margrave':'action-attack',
 'Masquerade':'action',
 'Menagerie':'action',
-'Mercenary':'action',
-'Militia':'action',
-'Minion':'action',
+'Mercenary':'action-attack',
+'Militia':'action-attack',
+'Minion':'action-attack',
 'Mint':'action',
 'Moneylender':'action',
 'Monument':'action',
-'Mountebank':'action',
+'Mountebank':'action-attack',
 'Mystic':'action',
 'Navigator':'action',
-'Noble Brigand':'action',
+'Noble Brigand':'action-attack',
 'Nomad Camp':'action',
 'Oasis':'action',
-'Oracle':'action',
+'Oracle':'action-attack',
 'Pawn':'action',
 'Pearl Diver':'action',
 'Peddler':'action',
-'Pillage':'action',
-'Pirate Ship':'action',
+'Pillage':'action-attack',
+'Pirate Ship':'action-attack',
 'Poor House':'action',
 'Possession':'action',
 'Princess':'action',
 'Procession':'action',
-'Rabble':'action',
+'Rabble':'action-attack',
 'Rats':'action',
 'Rebuild':'action',
 'Remake':'action',
 'Remodel':'action',
 'Rogue':'action',
-'Saboteur':'action',
+'Saboteur':'action-attack',
 'Sage':'action',
 'Salvager':'action',
 'Scavenger':'action',
 'Scheme':'action',
 'Scout':'action',
-'Scrying Pool':'action',
-'Sea Hag':'action',
+'Scrying Pool':'action-attack',
+'Sea Hag':'action-attack',
 'Shanty Town':'action',
 'Sir Bailey':'action',
 'Sir Destry':'action',
@@ -345,15 +354,15 @@ var types = {
 'Smithy':'action',
 'Smugglers':'action',
 'Spice Merchant':'action',
-'Spy':'action',
+'Spy':'action-attack',
 'Squire':'action',
 'Stables':'action',
 'Steward':'action',
 'Storeroom':'action',
-'Swindler':'action',
-'Thief':'action',
+'Swindler':'action-attack',
+'Thief':'action-attack',
 'Throne Room':'action',
-'Torturer':'action',
+'Torturer':'action-attack',
 'Tournament':'action',
 'Trade Route':'action',
 'Trading Post':'action',
@@ -364,14 +373,14 @@ var types = {
 'Trusty Steed':'action',
 'University':'action',
 'Upgrade':'action',
-'Urchin':'action',
+'Urchin':'action-attack',
 'Vagrant':'action',
 'Vault':'action',
 'Wandering Minstrel':'action',
 'Warehouse':'action',
 'Wishing Well':'action',
-'Witch':'action',
-'Young Witch':'action',
+'Witch':'action-attack',
+'Young Witch':'action-attack',
 'Woodcutter':'action',
 'Workshop':'action',
 'Beggar':'action-reaction',
@@ -486,9 +495,11 @@ function updateDeck(player, action) {
 	updateCards(player, h[1].split(', ').filter(function(c){return c != "Fortress"}), -1);
     } else if (h = action.match(/^starting cards: (.*)/)) {
 	updateCards(player, h[1].split(', '), 1);
+/* live log does not have passed card names
     } else if (h = action.match(/^passes (.*)/)) {
 	updateCards(player, [h[1]], -1);
 	updateCards(player == newLogPlayers ? 1 : player + 1, [h[1]], 1);
+*/
     } else if (h = action.match(/^receives ([0-9]*) victory point chips$/)) {
 	vpchips[player]+=+h[1];
 	updateCards(player, []);
@@ -499,9 +510,26 @@ function updateDeck(player, action) {
 	updateCards(player, [h[1]], -1);
     }
 }
+
+function updateDeckMasq(src_player, dst_player, card) {
+    if (!card || !src_player || !dst_player) return;
+    console.log('passed: '+card+' from '+src_player+' to '+dst_player);
+    updateCards(src_player, [card], -1);
+    updateCards(dst_player, [card], 1);
+}
+function canonizeName(n) {
+    return n.toLowerCase().replace(/\W+/g,'');
+}
+
+function decodeCard(name) {
+    var n = name.toLowerCase().replace(/\.\d+$/,'');
+    for (var i in types)
+	if (canonizeName(i) == n)
+	    return i;
+    return undefined;
+}
 var vpOn = false;
 var vpOff = false;
-var lasttablename;
 function vp_div() {
     if (!vpOn) return '';
     var ret = '<div style="position:absolute;padding:2px;background-color:gray"><table>';
@@ -519,6 +547,21 @@ function vp_div() {
     ret += '</table></div>';
     return ret;
 }
+Dom.DominionWindow.prototype._old_moveCards = Dom.DominionWindow.prototype._moveCards;
+Dom.DominionWindow.prototype._moveCards = function(options, callback) {
+    var m = options.moves;
+    try {
+    for (var i = 0; i < m.length; i++) {
+	if (m[i].source.area.name == 'reveal' && m[i].destination.area.name == 'hand' &&
+	    m[i].source.area.playerIndex != m[i].destination.area.playerIndex) {
+	    updateDeckMasq(m[i].source.area.playerIndex+1, m[i].destination.area.playerIndex+1,
+			decodeCard(m[i].sourceCard));
+	}
+    }
+    } catch (e) { console.log('exception: ' + e); }
+    this._old_moveCards(options, callback);
+}
+
 var old_onIncomingMessage = DominionClient.prototype.onIncomingMessage;
 DominionClient.prototype.onIncomingMessage = function(messageName, messageData, message) {
     try {
@@ -542,7 +585,6 @@ DominionClient.prototype.onIncomingMessage = function(messageName, messageData, 
 	vpOff = false;
 	var tablename = JSON.parse(this.table.get("settings")).name;
 	if (tablename) {
-	    lasttablename = tablename;
 	    tablename = tablename.toUpperCase();
 	    if (tablename.indexOf("#VPON") != -1) {
 		this.clientConnection.send('sendChat',{text:'#vpon'})
@@ -557,13 +599,31 @@ DominionClient.prototype.onIncomingMessage = function(messageName, messageData, 
     old_onIncomingMessage.call(this, messageName, messageData, message);
 }
 
+var myCanvas = document.createElement("canvas");
+var myContext = myCanvas.getContext("2d");
 Goko.Player.old_AvatarLoader = Goko.Player.AvatarLoader;
 Goko.Player.AvatarLoader = function(userdata,callback) {
 	function loadImage() {
-		var img = new Image();
-		img.onerror = function() { Goko.Player.old_AvatarLoader(userdata,callback); };
-		img.onload = function() { callback(img); };
-		img.src = "http://dom.retrobox.eu/avatars/"+userdata.player.id+".png";
+	    var img = new Image();
+	    var img2 = new Image();
+	    img.onerror = img2.onerror = function() {
+		Goko.Player.old_AvatarLoader(userdata,callback);
+	    };
+	    img.onload = function() {
+		try {
+		    var size = [50,100,256][userdata.which];
+		    myCanvas.width = size;
+		    myCanvas.height = size;
+		    myContext.drawImage(img, 0, 0, img.width, img.height, 0, 0, size, size);
+		    img2.onload = function() {callback(img2)};
+		    img2.src = myCanvas.toDataURL("image/png");
+		} catch (e) {
+		    alert(e.toString());
+		    Goko.Player.old_AvatarLoader(userdata,callback);
+		}
+	    };
+	    img.crossOrigin = "Anonymous";
+	    img.src = "http://dom.retrobox.eu/avatars/"+userdata.player.id+".png";
 	}
 	if (userdata.which < 3) {
 	    loadImage();
@@ -571,6 +631,7 @@ Goko.Player.AvatarLoader = function(userdata,callback) {
 	    Goko.Player.old_AvatarLoader(userdata,callback);
 	}
 }
+Goko.Player.preloader=function(ids,which) {}
 
 FS.Templates.LaunchScreen.MAIN = FS.Templates.LaunchScreen.MAIN.replace('<div id="fs-player-pad-avatar"',
 '<div style="display:none"><form id="uploadAvatarForm" method="post" action="http://dom.retrobox.eu/setavatar.php"><input type="text" id="uploadAvatarId" name="id" value="x"/></form></div>'+
@@ -582,7 +643,231 @@ FS.Templates.LaunchScreen.MAIN = FS.Templates.LaunchScreen.MAIN.replace('<div id
 FS.EditTableView.prototype.old_modifyDOM = FS.EditTableView.prototype.modifyDOM;
 FS.EditTableView.prototype.modifyDOM = function () {
     var create = !_.isNumber(this.tableIndex);
+    var lasttablename = this.$tableName.val();
     this.old_modifyDOM();
     if (create && lasttablename)
 	this.$tableName.val(lasttablename);
 }
+
+
+FS.DominionEditTableView.prototype._old_renderRandomDeck = FS.DominionEditTableView.prototype._renderRandomDeck;
+FS.DominionEditTableView.prototype._renderRandomDeck = function () {
+    if (this.ratingType == 'pro') return;
+    this._old_renderRandomDeck();
+}
+
+var setsComp = {
+cellar:"B2",chapel:"B2",moat:"B2",
+chancellor:"B3",village:"B3",woodcutter:"B3",workshop:"B3",
+bureaucrat:"B4",feast:"B4",gardens:"B4",militia:"B4",moneylender:"B4",remodel:"B4",smithy:"B4",spy:"B4",thief:"B4",throneroom:"B4",
+councilroom:"B5",festival:"B5",laboratory:"B5",library:"B5",market:"B5",mine:"B5",witch:"B5",
+adventurer:"B6",
+courtyard:"I2",pawn:"I2",secretchamber:"I2",
+greathall:"I3",masquerade:"I3",shantytown:"I3",steward:"I3",swindler:"I3",wishingwell:"I3",
+baron:"I4",bridge:"I4",conspirator:"I4",coppersmith:"I4",ironworks:"I4",miningvillage:"I4",scout:"I4",
+duke:"I5",minion:"I5",saboteur:"I5",torturer:"I5",tradingpost:"I5",tribute:"I5",upgrade:"I5",
+harem:"I6",nobles:"I6",
+embargo:"S2",haven:"S2",lighthouse:"S2",nativevillage:"S2",pearldiver:"S2",
+ambassador:"S3",fishingvillage:"S3",lookout:"S3",smugglers:"S3",warehouse:"S3",
+caravan:"S4",cutpurse:"S4",island:"S4",navigator:"S4",pirateship:"S4",salvager:"S4",seahag:"S4",treasuremap:"S4",
+bazaar:"S5",explorer:"S5",ghostship:"S5",merchantship:"S5",outpost:"S5",tactician:"S5",treasury:"S5",wharf:"S5",
+herbalist:"A2",
+apprentice:"A5",
+transmute:"Ap",vineyard:"Ap",
+apothecary:"Ap",scryingpool:"Ap",university:"Ap",
+alchemist:"Ap",familiar:"Ap",philosophersstone:"Ap",
+golem:"Ap",
+possession:"Ap",
+loan:"P3",traderoute:"P3",watchtower:"P3",
+bishop:"P4",monument:"P4",quarry:"P4",talisman:"P4",workervillage:"P4",
+city:"P5",contraband:"P5",countinghouse:"P5",mint:"P5",mountebank:"P5",rabble:"P5",royalseal:"P5",vault:"P5",venture:"P5",
+goons:"P6",grandmarket:"P6",hoard:"P6",
+bank:"P7",expand:"P7",forge:"P7",kingscourt:"P7",
+peddler:"P8",
+hamlet:"C2",
+fortuneteller:"C3",menagerie:"C3",
+farmingvillage:"C4",horsetraders:"C4",remake:"C4",tournament:"C4",youngwitch:"C4",
+harvest:"C5",hornofplenty:"C5",huntingparty:"C5",jester:"C5",
+fairgrounds:"C6",
+crossroads:"H2",duchess:"H2",foolsgold:"H2",
+develop:"H3",oasis:"H3",oracle:"H3",scheme:"H3",tunnel:"H3",
+jackofalltrades:"H4",noblebrigand:"H4",nomadcamp:"H4",silkroad:"H4",spicemerchant:"H4",trader:"H4",
+cache:"H5",cartographer:"H5",embassy:"H5",haggler:"H5",highway:"H5",illgottengains:"H5",inn:"H5",mandarin:"H5",margrave:"H5",stables:"H5",
+bordervillage:"H6",farmland:"H6",
+poorhouse:"D1",
+beggar:"D2",squire:"D2",vagrant:"D2",
+forager:"D3",hermit:"D3",marketsquare:"D3",sage:"D3",storeroom:"D3",urchin:"D3",
+armory:"D4",deathcart:"D4",feodum:"D4",fortress:"D4",ironmonger:"D4",marauder:"D4",procession:"D4",rats:"D4",scavenger:"D4",wanderingminstrel:"D4",
+bandofmisfits:"D5",banditcamp:"D5",catacombs:"D5",count:"D5",counterfeit:"D5",cultist:"D5",graverobber:"D5",junkdealer:"D5",knights:"D5",mystic:"D5",pillage:"D5",rebuild:"D5",rogue:"D5",
+altar:"D6",huntinggrounds:"D6",
+blackmarket:"X3",
+envoy:"X4",walledvillage:"X4",
+governor:"X5",stash:"X5",
+};
+var setNames = {
+    '1':'cost1',
+    '2':'cost2',
+    '3':'cost3',
+    '4':'cost4',
+    '5':'cost5',
+    '6':'cost6',
+    '7':'cost7',
+    '8':'cost8',
+    'p':'costpotion',
+    'B':'baseset',
+    'I':'intrigue',
+    'S':'seaside',
+    'A':'alchemy',
+    'P':'prosperity',
+    'C':'cornucopia',
+    'H':'hinterlands',
+    'D':'darkages',
+    'X':'promos',
+};
+var sets = {};
+
+function buildSets() {
+    sets.all = {};
+    for(var c in setNames) sets[setNames[c]] = {};
+    for(var c in setsComp) {
+	var t = setsComp[c];
+	sets[c] = {}; sets[c][c] = 1;
+	sets.all[c] = 1;
+	for(var i = 0; i<t.length; i++) {
+	    sets[setNames[t[i]]][c] = 1;
+	}
+    }
+    for(var c in types) {
+	var n = canonizeName(c);
+	if (n in setsComp) {
+	    var t = types[c].split('-');
+	    for (var i = 0; i <t.length; i++) {
+		if (sets[t[i]] === undefined) sets[t[i]] = {};
+		sets[t[i]][n] = 1;
+	    }
+	}
+    }
+}
+buildSets();
+
+function myBuildCard(avail, except, set) {
+    var sum = 0;
+    for (var c in set) if (avail[c] && !except[c]) sum += set[c];
+    console.log(sum);
+    if (!sum) return null;
+    var rnd = Math.random() * sum;
+    for (var c in set) if (avail[c] && !except[c]) {
+	rnd -= set[c];
+	if (rnd < 0) return c;
+    }
+    return c;
+}
+function myBuildDeck(avail, s) {
+    var chosen = {};
+    var deck = new Array(11);
+    for (var i = 0; i < 11; i++) {
+	if (i == 10) {
+	    if (!chosen.youngwitch) break;
+	    for (var c in avail) if (!sets.cost2[c] && !sets.cost3[c]) chosen[c] = true;
+	}
+	var cs = s[i < s.length ? i : s.length - 1];
+	var card = myBuildCard(avail, chosen, cs);
+	if (!card) return null;
+	chosen[card] = true;
+	deck[i] = avail[card];
+    }
+    return deck;
+}
+var kingdomsel = function(val) {
+    this.sel = document.createElement('div');
+    this.sel.setAttribute("style", "position:absolute;display:none;left:0px;top:0px;height:100%;width:100%;background:rgba(0,0,0,0.5);z-index:6000;");
+    this.sel.setAttribute("class", "newlog");
+    this.sel.innerHTML = '<div style="text-align:center;position:absolute;top:50%;left:50%;height:100px;margin-top:-50px;width:80%;margin-left:-40%;background:white;"><div style="margin-top:20px">Select a kingdom (see <a target="_blank" href="http://dom.retrobox.eu/kingdomgenerator.html">instructions</a>):<br><form id="selform"><input id="selval" style="width:95%"><br><input type="submit" value="OK"></form></div></div>';
+    document.getElementById('viewport').appendChild(this.sel);
+    this.selform = document.getElementById('selform');
+    this.selval = document.getElementById('selval');
+    this.selval.value = 'All';
+}
+kingdomsel.prototype = {
+    prompt: function(callback) {
+	var self = this;
+	this.sel.style.display = 'block';
+	this.selval.focus();
+	this.selform.onsubmit = function () {
+	    callback(this.selval.value);
+	    self.sel.style.display = 'none';
+	    self.selform.onsubmit = null;
+	    return false;
+	};
+    }
+}
+//document.addEventListener ('DOMContentLoaded', function() {
+    var myCachedCards;
+    var sel = new kingdomsel('All');
+    if(FS.Dominion.DeckBuilder.Persistent.prototype._old_proRandomMethod) return;
+    FS.Dominion.DeckBuilder.Persistent.prototype._old_proRandomMethod =
+    FS.Dominion.DeckBuilder.Persistent.prototype._proRandomMethod;
+    FS.Dominion.DeckBuilder.Persistent.prototype._proRandomMethod = function(cachedCards, exceptCards, numberCards) {
+	myCachedCards = cachedCards;
+	var ret = this._old_proRandomMethod(cachedCards, exceptCards, numberCards);
+	return ret;
+    }
+    FS.Dominion.DeckBuilder.Persistent.prototype._old_getRandomCards =
+    FS.Dominion.DeckBuilder.Persistent.prototype.getRandomCards;
+    FS.Dominion.DeckBuilder.Persistent.prototype.getRandomCards = function (opts, callback) {
+	this._old_getRandomCards(opts,function (x) {
+	    if (opts.useEternalGenerateMethod) {
+		sel.prompt(function (val) {
+		    try {
+			var all = {};
+			myCachedCards.each(function (c) {all[c.get('nameId').toLowerCase()] = c.toJSON()});
+			var myret = myBuildDeck(all, set_parser.parse(val));
+			if (myret) x = myret;
+			else throw new Error('Cannot generate specified kingdom from the cards availiable');
+		    } catch(e) {alert(e)};
+		    callback(x);
+		});
+	    } else callback(x);
+	});
+    }
+window.canonizeName = canonizeName;
+window.sets = sets;
+//});
+FS.ZoneClassicHelper.prototype.old_onPlayerJoinTable =
+FS.ZoneClassicHelper.prototype.onPlayerJoinTable;
+FS.ZoneClassicHelper.prototype.onPlayerJoinTable = function (t,tp) {
+    this.old_onPlayerJoinTable(t,tp);
+    if (this.isLocalOwner(t)) {
+	var p = tp.get('player');
+	var settings = JSON.parse(t.get("settings"));
+	var pro = settings.ratingType == 'pro';
+	var m = settings.name.toLowerCase().match(/\b(\d+)(\d{3}|k)\+/);
+	var mr = null;
+	if (m) mr = parseInt(m[1],10) * 1000 + (m[2] == 'k' ? 0 : parseInt(m[2],10));
+	var ratingHelper = this.meetingRoom.getHelper('RatingHelper');
+	var self = this;
+	if (mr) ratingHelper.getRating({
+	    playerId: p.get("playerId"),
+	    $elPro: $(document.createElement('div')),
+	    $elQuit: $(document.createElement('div'))
+	}, function (resp) {
+	    if (!resp.data) return;
+	    var r = pro ? resp.data.ratingPro : resp.data.rank;
+	    if (r != undefined && r < mr) self.meetingRoom.conn.bootTable({
+		table: t.get('number'),
+		playerAddress: p.get('playerAddress')
+	    });
+	});
+    }
+}
+};
+document.addEventListener ('DOMContentLoaded', foo);
+/*
+var runInPageContext = function(fn) {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.textContent = '('+ fn +')();';
+  document.body.appendChild(script);
+}      
+runInPageContext(foo);
+*/
