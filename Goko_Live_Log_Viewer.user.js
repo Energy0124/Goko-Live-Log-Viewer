@@ -7,9 +7,13 @@
 // @require     http://dom.retrobox.eu/js/1.0.0/set_parser.js
 // @run-at      document-end
 // @grant       none
-// @version     11
+// @version     15
 // ==/UserScript==
 var foo = function () {
+if (Dom.LogManager.prototype.old_addLog) {
+    alert('More than one Dominion User Extension detected.\nPlease uninstall or disable one of them.');
+    return;
+}
 var newLog = document.createElement('div');
 var newLogText = '';
 var newLogMode = -1;
@@ -42,6 +46,7 @@ Dom.LogManager.prototype.addLog = function (opt) {
 	    if (j) {
 		possessed = j[3] != undefined; 
 		newLogMode = newLogNames[j[1]];
+		if (parseInt(j[2]) > 4) vpLocked = true; // Stop VP tracker settings after turn 4
 		newLogText += '<h1 class="p'+newLogMode+'">'+h[1]+'</h1>';
 	    } else {
 		if (h[1] == 'Game Setup') {
@@ -118,6 +123,19 @@ return ele;
 }
 {
 var style = "\
+.fs-launch-game-wrapper .header-bar .fs-rs-logout-row .fs-lg-settings-btn{\
+height: 30px;\
+line-height: 30px;\
+text-decoration: none;\
+text-align:center;\
+position:relative;\
+z-index: 1;\
+font-size: 13px;\
+font-weight: bold;\
+color: #5baacb;\
+cursor: pointer;\
+font-family: \"TrajanPro\", san-serif;\
+}\
 div.newlog {\
 font-size:12px;\
 font-family:Helvetica, Arial;\
@@ -436,6 +454,19 @@ var types = {
 'Tunnel':'victory-reaction',
 'victory point chips':'vp-chip',
 'Curse':'curse',
+'Candlestick Maker':'action',
+'Stonemason':'action',
+'Doctor':'action',
+'Masterpiece':'treasure',
+'Advisor':'action',
+'Herald':'action',
+'Plaza':'action',
+'Taxman':'action-attack',
+'Baker':'action',
+'Butcher':'action',
+'Journeyman':'action',
+'Merchant Guild':'action',
+'Soothsayer':'action-attack',
 }
 
 var fixnames = { 'JackOfAllTrades':'Jack of All Trades' };
@@ -529,7 +560,7 @@ function decodeCard(name) {
     return undefined;
 }
 var vpOn = false;
-var vpOff = false;
+var vpLocked = false;
 function vp_div() {
     if (!vpOn) return '';
     var ret = '<div style="position:absolute;padding:2px;background-color:gray"><table>';
@@ -546,6 +577,13 @@ function vp_div() {
     }
     ret += '</table></div>';
     return ret;
+}
+function vp_txt() {
+    var ret = [];
+    var p = Object.keys(newLogNames);
+    for (var i = 0; i < p.length; i++)
+	ret.push(p[i] + ': '+ playervp[newLogNames[p[i]]]);
+    return ret.sort().join(', ');
 }
 Dom.DominionWindow.prototype._old_moveCards = Dom.DominionWindow.prototype._moveCards;
 Dom.DominionWindow.prototype._moveCards = function(options, callback) {
@@ -568,30 +606,41 @@ DominionClient.prototype.onIncomingMessage = function(messageName, messageData, 
 //    if (messageName != 'messageGroup' && messageName != 'gamePingMessage')
 //	console.log(messageName + JSON.stringify(messageData));
     if (messageName == 'RoomChat') {
-	if (messageData.text.toUpperCase() == '#VPOFF') {
-	    vpOff = true;
-	    vpOn = false;
-	    this.clientConnection.send('sendChat',{text:'Victory Point tracker disallowed'});
-	} else if (messageData.text.toUpperCase() == '#VPON') {
-	    if (vpOff) {
-		this.clientConnection.send('sendChat',{text:'Victory Point tracker previously disallowed'});
+	if (messageData.text.toUpperCase() == '#VPOFF' && (vpOn || !vpLocked)) {
+	    if (vpLocked) {
+		this.clientConnection.send('sendChat',{text:'Victory Point tracker setting locked'});
 	    } else {
-		this.clientConnection.send('sendChat',{text:'Victory Point tracker enabled (type #vpoff to disallow)'});
+		this.clientConnection.send('sendChat',{text:'Victory Point tracker disallowed'});
+		vpOn = false;
+		vpLocked = true;
+	    }
+	} else if (messageData.text.toUpperCase() == '#VPON' && !vpOn) {
+	    if (vpLocked) {
+		this.clientConnection.send('sendChat',{text:'Victory Point tracker setting locked'});
+	    } else {
+		this.clientConnection.send('sendChat',{text:'Victory Point tracker enabled (see http://dom.retrobox.eu/vp.html)'});
 		vpOn = true;
 	    }
+	} else if (messageData.text.toUpperCase() == '#VP?' && vpOn) {
+	    this.clientConnection.send('sendChat',{text:'Current points: ' + vp_txt()});
 	}
     } else if (messageName == 'addLog' && messageData.text == '------------ Game Setup ------------') {
 	vpOn = false;
-	vpOff = false;
+	vpLocked = false;
 	var tablename = JSON.parse(this.table.get("settings")).name;
 	if (tablename) {
 	    tablename = tablename.toUpperCase();
 	    if (tablename.indexOf("#VPON") != -1) {
-		this.clientConnection.send('sendChat',{text:'#vpon'})
+		this.clientConnection.send('sendChat',{text:'Victory Point tracker enabled (see http://dom.retrobox.eu/vp.html)'});
+		vpOn = true;
+		vpLocked = true;
 	    } else if (tablename.indexOf("#VPOFF") != -1) {
-		this.clientConnection.send('sendChat',{text:'#vpoff'})
+		vpOn = false;
+		vpLocked = true;
 	    }
 	}
+    } else if (messageName == 'addLog' && messageData.text == 'Rating system: adventure' && options.adventurevp) {
+	vpOn = true;
     }
     } catch (e) {
 	console.log('exception :' + e);
@@ -599,6 +648,9 @@ DominionClient.prototype.onIncomingMessage = function(messageName, messageData, 
     old_onIncomingMessage.call(this, messageName, messageData, message);
 }
 
+//
+// Custom avatar module
+//
 var myCanvas = document.createElement("canvas");
 var myContext = myCanvas.getContext("2d");
 Goko.Player.old_AvatarLoader = Goko.Player.AvatarLoader;
@@ -640,19 +692,52 @@ FS.Templates.LaunchScreen.MAIN = FS.Templates.LaunchScreen.MAIN.replace('<div id
 'document.getElementById(\'uploadAvatarForm\').submit();'+
 '"');
 
+//
+// Saving table name module
+//
 FS.EditTableView.prototype.old_modifyDOM = FS.EditTableView.prototype.modifyDOM;
 FS.EditTableView.prototype.modifyDOM = function () {
     var create = !_.isNumber(this.tableIndex);
-    var lasttablename = this.$tableName.val();
-    this.old_modifyDOM();
+    var lasttablename = this.$tableName.val() || options.lasttablename;
+    options.lasttablename = lasttablename;
+    options_save();
+    FS.EditTableView.prototype.old_modifyDOM.call(this);
     if (create && lasttablename)
 	this.$tableName.val(lasttablename);
 }
 
+//
+// Saving other table settings between sessions
+//
+var firstCreateTable = true;
+FS.DominionEditTableView.prototype.old_modifyDOM = FS.DominionEditTableView.prototype.modifyDOM;
+FS.DominionEditTableView.prototype.modifyDOM = function () {
+    var create = !_.isNumber(this.tableIndex);
+    if (create && firstCreateTable) {
+	if (options.cacheSettings) this.cacheSettings = options.cacheSettings;
+	firstCreateTable = false;
+    }
+    FS.DominionEditTableView.prototype.old_modifyDOM.call(this);
+}
 
+FS.DominionEditTableView.prototype.old_retriveDOM = FS.DominionEditTableView.prototype.retriveDOM;
+FS.DominionEditTableView.prototype.retriveDOM = function () {
+    var ret = FS.DominionEditTableView.prototype.old_retriveDOM.call(this);
+    if (ret) {
+	options.cacheSettings = this.cacheSettings;
+	options_save();
+    }
+    return ret;
+}
+
+
+//
+// Kingdom generator module
+//
+var hideKingdomGenerator = false;
 FS.DominionEditTableView.prototype._old_renderRandomDeck = FS.DominionEditTableView.prototype._renderRandomDeck;
 FS.DominionEditTableView.prototype._renderRandomDeck = function () {
-    if (this.ratingType == 'pro') return;
+    if (this.ratingType == 'pro') hideKingdomGenerator = true;
     this._old_renderRandomDeck();
 }
 
@@ -703,6 +788,10 @@ altar:"D6",huntinggrounds:"D6",
 blackmarket:"X3",
 envoy:"X4",walledvillage:"X4",
 governor:"X5",stash:"X5",
+candlestickmaker:"G2",stonemason:"G2",
+doctor:"G3",masterpiece:"G3",
+advisor:"G4",herald:"G4",plaza:"G4",taxman:"G4",
+baker:"G5",butcher:"G5",journeyman:"G5",merchantguild:"G5",soothsayer:"G5",
 };
 var setNames = {
     '1':'cost1',
@@ -723,6 +812,7 @@ var setNames = {
     'H':'hinterlands',
     'D':'darkages',
     'X':'promos',
+    'G':'guilds',
 };
 var sets = {};
 
@@ -753,7 +843,6 @@ buildSets();
 function myBuildCard(avail, except, set) {
     var sum = 0;
     for (var c in set) if (avail[c] && !except[c]) sum += set[c];
-    console.log(sum);
     if (!sum) return null;
     var rnd = Math.random() * sum;
     for (var c in set) if (avail[c] && !except[c]) {
@@ -792,7 +881,7 @@ kingdomsel.prototype = {
     prompt: function(callback) {
 	var self = this;
 	this.sel.style.display = 'block';
-	this.selval.focus();
+	this.selval.select();
 	this.selform.onsubmit = function () {
 	    callback(this.selval.value);
 	    self.sel.style.display = 'none';
@@ -816,7 +905,7 @@ kingdomsel.prototype = {
     FS.Dominion.DeckBuilder.Persistent.prototype.getRandomCards;
     FS.Dominion.DeckBuilder.Persistent.prototype.getRandomCards = function (opts, callback) {
 	this._old_getRandomCards(opts,function (x) {
-	    if (opts.useEternalGenerateMethod) {
+	    if (options.generator && !hideKingdomGenerator && opts.useEternalGenerateMethod) {
 		sel.prompt(function (val) {
 		    try {
 			var all = {};
@@ -828,16 +917,30 @@ kingdomsel.prototype = {
 		    callback(x);
 		});
 	    } else callback(x);
+	    hideKingdomGenerator = false;
 	});
     }
 window.canonizeName = canonizeName;
 window.sets = sets;
 //});
+
+//
+// Auto kick module
+//
+// Goko dependencies:
+//   - getRating API specifics ($elPro and $elQuit trigger getting the pro ranking)
+//   - onPlayerJoinTable API
+//   - lot of other APIs (bootTable, table settings, isLocalOwner)
+// Internal dependencies: enabled by options.autokick
+//
+joinSound = document.createElement('div');
+joinSound.innerHTML = '<audio id="_joinSound" style="display: none;" src="sounds/startTurn.ogg"></audio>';
+document.getElementById('viewport').appendChild(joinSound);
 FS.ZoneClassicHelper.prototype.old_onPlayerJoinTable =
 FS.ZoneClassicHelper.prototype.onPlayerJoinTable;
 FS.ZoneClassicHelper.prototype.onPlayerJoinTable = function (t,tp) {
     this.old_onPlayerJoinTable(t,tp);
-    if (this.isLocalOwner(t)) {
+    if (options.autokick && this.isLocalOwner(t)) {
 	var p = tp.get('player');
 	var settings = JSON.parse(t.get("settings"));
 	var pro = settings.ratingType == 'pro';
@@ -856,18 +959,168 @@ FS.ZoneClassicHelper.prototype.onPlayerJoinTable = function (t,tp) {
 	    if (r != undefined && r < mr) self.meetingRoom.conn.bootTable({
 		table: t.get('number'),
 		playerAddress: p.get('playerAddress')
-	    });
+	    }); else document.getElementById('_joinSound').play();
 	});
     }
 }
+
+//
+// Lobby ratings module
+//
+// Goko dependencies:
+// - getRating API specifics ($elPro and $elQuit trigger getting the pro ranking)
+// - class name of the player list rank element ('player-rank')
+// - format of the text content of the player list element ('username Rating: 1000')
+// Internal dependencies:
+// - pro rating display enabled by options.proranks
+// - sort by rating enabled by options.sortrating
+// - insertInPlace()
+// - getRatingObject()
+//
+
+FS.RatingHelper.prototype.old_getRating =
+FS.RatingHelper.prototype.getRating;
+FS.RatingHelper.prototype.getRating = function (opts, callback) {
+    var newCallback = callback;
+    if (opts.$el && opts.$el.hasClass('player-rank')) {
+	if (options.sortrating) {
+	    var playerElement = opts.$el.closest('li')[0];
+	    newCallback = function () {
+		callback();
+		insertInPlace(playerElement);
+	    };
+	}
+	if (options.proranks) {
+	    opts.$elPro = opts.$el;
+	    opts.$elQuit = $(document.createElement('div'));
+	    delete opts.$el;
+	}
+    }
+    this.old_getRating(opts, newCallback);
 };
-document.addEventListener ('DOMContentLoaded', foo);
-/*
-var runInPageContext = function(fn) {
-  var script = document.createElement('script');
-  script.type = 'text/javascript';
-  script.textContent = '('+ fn +')();';
-  document.body.appendChild(script);
-}      
-runInPageContext(foo);
-*/
+
+FS.ClassicRoomView.prototype.old_modifyDOM =
+FS.ClassicRoomView.prototype.modifyDOM;
+FS.ClassicRoomView.prototype.modifyDOM = function () {
+    var originalRating = this.meetingRoom.options.ratingSystemId;
+    if (options.proranks)
+        this.meetingRoom.options.ratingSystemId = FS.MeetingRoomSetting.ratingSystemPro;
+    FS.ClassicRoomView.prototype.old_modifyDOM.call(this);
+    this.meetingRoom.options.ratingSystemId = originalRating;
+};
+
+function insertInPlace(element) {
+    var list = element.parentNode;
+    if (!list) return; // Removed from the list before the ranking came
+    list.removeChild(element);
+
+    var newEl = getSortablePlayerObjectFromElement(element),
+        elements = list.children,
+        b = elements.length,
+        a = 0;
+
+    while (a !== b) {
+        var c = Math.floor((a+b)/2);
+        var compare = getSortablePlayerObjectFromElement(elements[c]);
+
+        // sort first by rating, then alphabetically
+        if (compare.rating < newEl.rating || compare.rating === newEl.rating && compare.name > newEl.name) {
+            b = c;
+        } else {
+            a = c + 1;
+        }
+    }
+    list.insertBefore(element,elements[a] || null);
+}
+
+function getSortablePlayerObjectFromElement(element) {
+    var rankSpan = element.querySelector('.player-rank>span');
+    return {
+        name: element.querySelector('.fs-mtrm-player-name>strong').innerHTML,
+        rating: rankSpan ? parseInt(rankSpan.innerHTML,10) : -1
+    };
+}
+
+//
+// Configuration module
+//
+// Exports: 'options' object, options_save function.
+// Goko dependencies:
+//   - Format of the main screen layout template: FS.Templates.LaunchScreen.MAIN
+// Internal dependencies: none
+//
+var default_options = {
+    version: 1,
+    autokick: true,
+    generator: true,
+    proranks: true,
+    sortrating: true,
+    adventurevp: true,
+};
+var options = {};
+function options_save() {
+    localStorage.userOptions = JSON.stringify(options);
+}
+function options_load() {
+    if (localStorage.userOptions)
+	options = JSON.parse(localStorage.userOptions);
+    for (var o in default_options)
+	if (!(o in options)) options[o] = default_options[o];
+}
+function options_window() {
+    var h;
+    var optwin;
+    optwin = document.createElement('div');
+    optwin.setAttribute("style", "position:absolute;display:none;left:0px;top:0px;height:100%;width:100%;background:rgba(0,0,0,0.5);z-index:6000;");
+    optwin.setAttribute("class", "newlog");
+    optwin.setAttribute("id", "usersettings");
+    h = '<div style="text-align:center;position:absolute;top:50%;left:50%;height:300px;margin-top:-150px;width:40%;margin-left:-20%;background:white;"><div style="margin-top:20px">';
+    h+= 'User extension settings:<br>';
+    h+= '<form style="margin:10px;text-align:left" id="optform">';
+    h+= '<input name="autokick" type="checkbox">Auto kick<br>';
+    h+= '<input name="generator" type="checkbox">Kingdom generator (see <a target="_blank" href="http://dom.retrobox.eu/kingdomgenerator.html">instructions</a>)<br>';
+    h+= '<input name="proranks" type="checkbox">Show pro rankings in the lobby<br>';
+    h+= '<input name="sort-rating" type="checkbox">Sort players by rating<br>';
+    h+= '<input name="adventurevp" type="checkbox">Victory point tracker in Adventures<br>';
+//    h+= '<input name="opt" style="width:95%"><br>';
+    h+= '<div style="align:center;text-align:center"><input type="submit" value="Save"></div></form>';
+    h+= '</div></div>';
+    optwin.innerHTML = h;
+    document.getElementById('viewport').appendChild(optwin);
+//    $('#optform input[name="opt"]').val('Aha');
+    $('#optform input[name="autokick"]').prop('checked',options.autokick);
+    $('#optform input[name="generator"]').prop('checked',options.generator);
+    $('#optform input[name="proranks"]').prop('checked',options.proranks);
+    $('#optform input[name="sort-rating"]').prop('checked',options.sortrating);
+    $('#optform input[name="adventurevp"]').prop('checked',options.adventurevp);
+    document.getElementById('optform').onsubmit = function () {
+	options.autokick = $('#optform input[name="autokick"]').prop('checked');
+	options.generator = $('#optform input[name="generator"]').prop('checked');
+	options.proranks = $('#optform input[name="proranks"]').prop('checked');
+	options.sortrating = $('#optform input[name="sort-rating"]').prop('checked'); 
+	options.adventurevp = $('#optform input[name="adventurevp"]').prop('checked'); 
+	options_save();
+	$('#usersettings').hide();
+	return false;
+    };
+}
+options_load();
+options_window();
+FS.Templates.LaunchScreen.MAIN = FS.Templates.LaunchScreen.MAIN.replace('Logout</a>',
+'Logout</a><div onClick="$(\'#usersettings\').show()" class="fs-lg-settings-btn">User Settings</div>');
+
+};
+
+if (navigator.userAgent.indexOf('Firefox') >= 0) {
+    document.addEventListener ('DOMContentLoaded', foo);
+} else {
+    var runInPageContext = function(fn) {
+	var script = document.createElement('script');
+	script.src = 'http://dom.retrobox.eu/js/1.0.0/set_parser.js';
+	document.body.appendChild(script);
+	script = document.createElement('script');
+	script.textContent = '('+ fn +')();';
+	document.body.appendChild(script);
+    }
+    runInPageContext(foo);
+}
