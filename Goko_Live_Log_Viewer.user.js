@@ -104,10 +104,10 @@ function newLogRefresh() {
 	var goko_game = document.getElementById("goko-game");
 	var goko_canvas = document.getElementById("myCanvas");
 	if (newLogHide || goko_game.style.display == 'none') return;
-	goko_game.setAttribute("style", 'margin-left:'+Math.floor(-window.innerWidth/2) + 'px !important');
+	goko_game.setAttribute("style", 'margin-left:'+Math.floor(-window.innerWidth/2+200) + 'px !important');
 	var goko_w = goko_canvas.offsetWidth;
 	var goko_h = goko_canvas.offsetHeight;
-	var w = window.innerWidth - goko_w;
+	var w = window.innerWidth - goko_w-200;
 	var t = goko_canvas.style.marginTop;
 	newLog.setAttribute("style", "position:absolute; overflow:auto; left:"+goko_w+"px; width:"+w+"px; margin-top:"+t+"; height:"+goko_h+"px; background-color: white; z-index: -1");
 	newLog.innerHTML = vp_div() + '<div id="newlogcontainer" style="overflow:auto;height:'+(goko_h-200)+'px;width:'+(w-10)+'px;padding:195px 5px 5px 5px">'+newLogText+"</div>";
